@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { KanbanSquare, Trophy, Smile, Star, TrendingUp, Users, CheckCircle2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getCurrentUser, mockTasks, teamMembers, weeklyMoodData, monthlyProductivity } from "@/data/mock";
+import { getCurrentUser, mockTasks, users, weeklyMoodData, monthlyProductivity } from "@/data/mock";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
 
 export default function Dashboard() {
@@ -63,7 +63,7 @@ export default function Dashboard() {
                 <XAxis dataKey="month" axisLine={false} tickLine={false} className="text-xs" />
                 <YAxis axisLine={false} tickLine={false} className="text-xs" />
                 <Tooltip />
-                <Bar dataKey="tasks" fill="hsl(162, 72%, 40%)" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="tasks" fill="hsl(221, 83%, 53%)" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -83,9 +83,9 @@ export default function Dashboard() {
                 <XAxis dataKey="day" axisLine={false} tickLine={false} className="text-xs" />
                 <YAxis axisLine={false} tickLine={false} className="text-xs" />
                 <Tooltip />
-                <Line type="monotone" dataKey="happy" stroke="hsl(142, 72%, 45%)" strokeWidth={2} dot={{ r: 4 }} />
-                <Line type="monotone" dataKey="neutral" stroke="hsl(38, 92%, 50%)" strokeWidth={2} dot={{ r: 4 }} />
-                <Line type="monotone" dataKey="sad" stroke="hsl(0, 72%, 55%)" strokeWidth={2} dot={{ r: 4 }} />
+                <Line type="monotone" dataKey="happy" stroke="hsl(221, 83%, 53%)" strokeWidth={2} dot={{ r: 4 }} />
+                <Line type="monotone" dataKey="neutral" stroke="hsl(244, 75%, 59%)" strokeWidth={2} dot={{ r: 4 }} />
+                <Line type="monotone" dataKey="sad" stroke="hsl(43, 100%, 65%)" strokeWidth={2} dot={{ r: 4 }} />
               </LineChart>
             </ResponsiveContainer>
           </CardContent>
@@ -103,7 +103,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {[...teamMembers]
+              {[...users]
                 .sort((a, b) => b.points - a.points)
                 .slice(0, 5)
                 .map((member, i) => (

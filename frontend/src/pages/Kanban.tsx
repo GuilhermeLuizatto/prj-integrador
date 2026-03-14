@@ -6,10 +6,11 @@ import { Plus, Calendar, Star, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { mockTasks, Task, TaskStatus } from "@/data/mock";
+import { mockTasks, Task, TaskStatus, users } from "@/data/mock";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useDroppable } from "@dnd-kit/core";
+import TaskFormModal from "@/components/TaskFormModal";
 
 const columns: { id: TaskStatus; title: string; color: string }[] = [
   { id: "todo", title: "A Fazer", color: "bg-info" },
@@ -87,6 +88,21 @@ export default function Kanban() {
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
+  const handleCreateTask = (data: { title: string; description: string; assignedTo: string }) => {
+    const assignee = users.find((u) => u.id === data.assignedTo) || users[0];
+    const newTask: Task = {
+      id: Date.now().toString(),
+      title: data.title,
+      description: data.description,
+      assignee,
+      status: "todo",
+      points: 10,
+      deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      created_at: new Date().toISOString(),
+    };
+    setTasks((prev) => [...prev, newTask]);
+  };
+
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as string);
   };
@@ -128,10 +144,15 @@ export default function Kanban() {
           <h1 className="text-3xl font-heading font-bold text-foreground">Quadro Kanban</h1>
           <p className="text-muted-foreground mt-1">Arraste tarefas entre as colunas</p>
         </div>
-        <Button className="bg-gradient-primary text-primary-foreground">
-          <Plus className="w-4 h-4 mr-2" />
-          Nova Tarefa
-        </Button>
+        <TaskFormModal
+          trigger={
+            <Button className="bg-gradient-primary text-primary-foreground">
+              <Plus className="w-4 h-4 mr-2" />
+              Nova Tarefa
+            </Button>
+          }
+          onSubmit={handleCreateTask}
+        />
       </div>
 
       <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>

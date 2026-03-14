@@ -14,9 +14,10 @@ import Ranking from "@/pages/Ranking";
 import Mood from "@/pages/Mood";
 import Profile from "@/pages/Profile";
 import Institution from "@/pages/Institution";
-import Plans from "@/pages/Plans";
 import Help from "@/pages/Help";
 import NotFound from "@/pages/NotFound";
+import UserImport from "./pages/UserImport";
+import OrgStructure from "./pages/OrgStructure";
 
 const queryClient = new QueryClient();
 
@@ -38,8 +39,9 @@ const App = () => (
             <Route path="/mood" element={<Mood />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/institution" element={<Institution />} />
-            <Route path="/plans" element={<Plans />} />
             <Route path="/help" element={<Help />} />
+            <Route path="/userimport" element={<UserImport />} />
+            <Route path="/orgstructure" element={<OrgStructure />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

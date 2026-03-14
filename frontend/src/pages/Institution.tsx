@@ -35,10 +35,7 @@ export default function Institution() {
               <Label>Nome da Instituição</Label>
               <Input defaultValue="TechCorp LTDA" />
             </div>
-            <div className="space-y-2">
-              <Label>Plano Atual</Label>
-              <Input value="Premium" readOnly className="bg-secondary" />
-            </div>
+            
           </div>
           <Button className="bg-gradient-primary text-primary-foreground">Salvar</Button>
         </CardContent>

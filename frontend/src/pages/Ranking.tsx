@@ -6,9 +6,9 @@ import { teamMembers } from "@/data/mock";
 const sorted = [...teamMembers].sort((a, b) => b.points - a.points);
 
 const podiumColors = [
-  "from-warning to-warning/70",
-  "from-muted-foreground/30 to-muted/50",
-  "from-warning/50 to-warning/30",
+  "from-[hsl(43,100%,65%)] to-[hsl(43,100%,65%)]",
+  "from-[hsl(0,0%,75%)] to-[hsl(0,0%,75%)]",
+  "from-[hsl(38,97%,33%)] to-[hsl(38,97%,33%)]",
 ];
 
 export default function Ranking() {

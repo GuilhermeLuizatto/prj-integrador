@@ -9,29 +9,27 @@
     --font-heading: 'Space Grotesk', sans-serif;
     --font-body: 'Inter', sans-serif;
 
-   
-  --background: 0 0% 55%;
-  --foreground: 224 30% 12%;
-
+    /* --- light theme palette --- */
+    --background: 0 0% 90%;
+    --foreground: 222 47% 11%;
 
     --card: 0 0% 100%;
-    --card-foreground: 224 30% 12%;
+    --card-foreground: 222 47% 11%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 224 30% 12%;
+    --popover-foreground: 222 47% 11%;
 
-    /* logo blue – same as gradient-primary */
-    --primary: 209 70% 24%;
+    /* brand colors */
+    --primary: 221 83% 53%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 224 20% 94%;
-    --secondary-foreground: 224 30% 12%;
+    --secondary-foreground: 222 47% 11%;
 
     --muted: 220 16% 93%;
-    /* muted text now matches main foreground for full contrast */
-    --muted-foreground: 224 30% 12%;
+    --muted-foreground: 222 47% 11%;
 
-    --accent: 262 80% 58%;
+    --accent: 244 75% 59%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 72% 55%;
@@ -43,78 +41,96 @@
 
     --radius: 0.75rem;
 
-    --warning: 38 92% 50%;
+    --warning: 43 100% 65%;
     --warning-foreground: 0 0% 100%;
     --success: 209 70% 24%;
     --success-foreground: 0 0% 100%;
     --info: 210 92% 55%;
     --info-foreground: 0 0% 100%;
 
+    /* mood colors (unchanged) */
     --mood-happy: 142 72% 45%;
     --mood-good: 162 65% 48%;
     --mood-neutral: 38 92% 50%;
     --mood-sad: 220 60% 55%;
     --mood-stressed: 0 72% 55%;
 
-    --gradient-primary: linear-gradient(135deg, hsl(209, 70%, 24%), hsl(209, 70%, 24%));
-    --gradient-accent: linear-gradient(135deg,hsl(262, 85%, 31%), hsl(262, 85%, 31%));
-    --gradient-hero: linear-gradient(135deg, hsl(224, 30%, 12%), hsl(224, 25%, 18%));
+    /* gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(221, 83%, 53%), hsl(221, 83%, 53%));
+    --gradient-accent: linear-gradient(135deg, hsl(244, 75%, 59%), hsl(244, 75%, 59%));
+    --gradient-hero: linear-gradient(45deg, hsl(222, 47%, 11%), hsl(221, 83%, 53%));
     --gradient-card: linear-gradient(145deg, hsl(0, 0%, 100%), hsl(220, 20%, 98%));
 
-    --shadow-sm: 0 1px 2px hsl(224 30% 12% / 0.04);
-    --shadow-md: 0 4px 12px hsl(224 30% 12% / 0.06);
-    --shadow-lg: 0 8px 30px hsl(224 30% 12% / 0.08);
-    --shadow-glow: 0 0 20px hsl(209 70% 24% / 0.15);
+    /* shadows */
+    --shadow-sm: 0 1px 2px hsl(222 47% 11% / 0.04);
+    --shadow-md: 0 4px 12px hsl(222 47% 11% / 0.06);
+    --shadow-lg: 0 8px 30px hsl(222 47% 11% / 0.08);
+    --shadow-glow: 0 0 20px hsl(221 83% 53% / 0.15);
 
+    /* sidebar */
     --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 224 30% 12%;
-    --sidebar-primary: 209 70% 24%;
+    --sidebar-foreground: 222 47% 11%;
+    --sidebar-primary: 221 83% 53%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 220 20% 96%;
-    --sidebar-accent-foreground: 224 30% 12%;
+    --sidebar-accent-foreground: 222 47% 11%;
     --sidebar-border: 220 16% 92%;
     --sidebar-ring: 209 70% 24%;
   }
 
   .dark {
-   
-  --background: 0 0% 55%;
+    /* --- dark theme palette --- */
+    --background: 220 14% 12%;
+    --foreground: 0 0% 100%;
 
-    --foreground: 224 30% 12%;
+    --card: 224 15% 18%;
+    --card-foreground: 0 0% 100%;
 
-    --card: 224 25% 12%;
-    --card-foreground: 220 20% 95%;
+    --popover: 224 15% 18%;
+    --popover-foreground: 0 0% 100%;
 
-    --popover: 224 25% 12%;
-    --popover-foreground: 220 20% 95%;
-
-    --primary: 209 70% 24%;
+    /* brand colors adjusted for dark */
+    --primary: 221 83% 63%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 224 20% 16%;
-    --secondary-foreground: 220 20% 95%;
+    --secondary-foreground: 0 0% 100%;
 
     --muted: 224 15% 18%;
-    --muted-foreground: 224 30% 12%;
+    --muted-foreground: 220 20% 65%;
 
-    --accent: 262 80% 62%;
+    --accent: 244 75% 69%;
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 72% 50%;
+    /* dark gradients using adjusted brand colors */
+    --gradient-primary: linear-gradient(135deg, hsl(221,83%,63%), hsl(221,83%,63%));
+    --gradient-accent: linear-gradient(135deg, hsl(244,75%,69%), hsl(244,75%,69%));
+    --gradient-hero: linear-gradient(45deg, hsl(222, 47%, 11%), hsl(221deg 69.34% 25.66%));
+    --gradient-card: linear-gradient(145deg, hsl(224,15%,18%), hsl(220,20%,20%));
+
+    --destructive: 0 72% 55%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 224 15% 18%;
+    --border: 224 15% 25%;
     --input: 224 15% 18%;
-    --ring: 209 70% 24%;
+    --ring: 221 83% 53%;
 
-    --sidebar-background: 224 25% 10%;
-    --sidebar-foreground: 220 20% 95%;
-    --sidebar-primary: 209 70% 24%;
+    --warning: 43 100% 75%;
+    --warning-foreground: 0 0% 100%;
+    --success: 209 70% 24%;
+    --success-foreground: 0 0% 100%;
+    --info: 210 92% 55%;
+    --info-foreground: 0 0% 100%;
+
+    /* sidebar dark variants */
+    --sidebar-background: 220 14% 8%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 221 83% 63%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 224 20% 14%;
-    --sidebar-accent-foreground: 220 20% 95%;
+    --sidebar-accent-foreground: 0 0% 100%;
     --sidebar-border: 224 15% 16%;
-    --sidebar-ring: 209 70% 24%;
+    --sidebar-ring: 221 83% 63%;
   }
 }
 
@@ -170,7 +186,57 @@
 
   .glass {
     backdrop-filter: blur(12px);
-    background: hsl(0 0% 100% / 0.7);
-    border: 1px solid hsl(220 16% 90% / 0.5);
+    background: hsl(var(--background) / 0.7);
+    border: 1px solid hsl(var(--border) / 0.5);
+  }
+}
+
+@layer utilities {
+  .shadow-glow {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+  }
+  
+  .glass {
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+}
+
+/* Animação de flutuação suave */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-15px); }
+}
+
+.animate-float {
+  animation: float 5s ease-in-out infinite;
+}
+
+.glow-fundo {
+  position: absolute;
+  top: -20%;
+  width: 800px;
+  height: 800px;
+  
+
+  background: radial-gradient(
+    circle, 
+    rgba(0, 212, 255, 0.4) 0%,   /* Ciano elétrico no centro */
+    rgba(0, 102, 255, 0.15) 40%, /* Azul mais escuro no meio */
+    transparent 70%              /* Desvanecimento total para o fundo */
+  );
+  border-radius: 50%;
+  filter: blur(40px); /* Cria o desfoque etéreo profundo */
+  
+  z-index: 0; /* Atrás de todos os seus mockups (que começam do 10) */
+  pointer-events: none; /* Garante que o usuário possa clicar através do brilho */
+}
+
+@media (max-width: 768px) {
+  .glow-fundo {
+    width: 300px;
+    height: 300px;
   }
 }

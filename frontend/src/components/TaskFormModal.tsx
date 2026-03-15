@@ -45,7 +45,7 @@ interface User {
   name: string;
   email: string;
   role: string;
-  manager_id?: number | null;
+  managerId?: string | null;
 }
 
 interface TaskFormModalProps {
@@ -73,7 +73,7 @@ export default function TaskFormModal({ trigger, onSubmit }: TaskFormModalProps)
   const getAllSubordinateIds = (allUsers: User[], managerId: string | number): string[] => {
     const managerIdStr = managerId?.toString();
     const direct = allUsers
-      .filter((u) => u.manager_id !== undefined && u.manager_id !== null && u.manager_id.toString() === managerIdStr)
+      .filter((u) => u.managerId !== undefined && u.managerId !== null && u.managerId.toString() === managerIdStr)
       .map((u) => u.id.toString());
 
     const indirect = direct.flatMap((subId) => getAllSubordinateIds(allUsers, subId));
@@ -85,14 +85,14 @@ export default function TaskFormModal({ trigger, onSubmit }: TaskFormModalProps)
         if (!currentUser) return true;
 
         const currentId = currentUser.id?.toString();
-        const isManager = currentUser.role?.toLowerCase() === "manager" || currentUser.email === "ana@azis.com";
+        const subordinateIds = getAllSubordinateIds(users, currentId);
 
-        if (isManager) {
-          const subordinateIds = getAllSubordinateIds(users, currentId);
+        // If the user has subordinates, show them.
+        if (subordinateIds.length > 0) {
           return subordinateIds.includes(user.id.toString());
         }
 
-        // For members, allow only themselves
+        // Otherwise, fall back to allowing the current user to assign to themselves.
         return user.id.toString() === currentId;
       })
     : [];

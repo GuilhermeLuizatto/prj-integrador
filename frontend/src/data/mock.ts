@@ -122,10 +122,54 @@ const USERS_STORAGE_KEY = "azis_users";
 export function getActiveUsers(): User[] {
   try {
     const stored = localStorage.getItem(USERS_STORAGE_KEY);
+    const storedUser = localStorage.getItem("azis_user");
+    const currentUserId = storedUser ? (JSON.parse(storedUser) as any)?.id : null;
+
     if (stored) {
-      const parsed = JSON.parse(stored) as User[];
+      const parsed = JSON.parse(stored) as any[];
       if (Array.isArray(parsed)) {
-        return parsed;
+        // Normalize older data shapes that used `manager_id` instead of `managerId`
+        const normalized = parsed.map((u) => ({
+          ...u,
+          managerId: u.managerId ?? u.manager_id ?? null,
+        })) as User[];
+
+        // If stored users are missing managerId, merge from the default mock dataset
+        const defaultById = new Map(users.map((u) => [u.id, u]));
+        const normalizedWithManagers = normalized.map((u) => {
+          if (u.managerId === null || u.managerId === undefined) {
+            const fallback = defaultById.get(u.id) ?? users.find((m) => m.email === u.email);
+            return {
+              ...u,
+              managerId: fallback?.managerId ?? null,
+            };
+          }
+          return u;
+        });
+
+        // If the current user is a manager in the default data set but the stored list
+        // does not include their subordinates, fallback to the default mock set.
+        const currentUserHasSubordinatesInMock = users.some(
+          (u) => u.managerId?.toString() === currentUserId?.toString(),
+        );
+        const currentUserHasSubordinatesInStorage = normalizedWithManagers.some(
+          (u) => u.managerId?.toString() === currentUserId?.toString(),
+        );
+
+        if (currentUserId && currentUserHasSubordinatesInMock && !currentUserHasSubordinatesInStorage) {
+          return users;
+        }
+
+        // If local storage only contains the current user, also fallback to default set.
+        if (
+          currentUserId &&
+          normalizedWithManagers.length <= 1 &&
+          normalizedWithManagers.some((u) => u.id?.toString() === currentUserId.toString())
+        ) {
+          return users;
+        }
+
+        return normalizedWithManagers;
       }
     }
   } catch (error) {
@@ -167,7 +211,7 @@ export function getCurrentUser(): User {
   try {
     const stored = localStorage.getItem("azis_user");
     if (stored) {
-      const parsed = JSON.parse(stored) as Partial<User>;
+      const parsed = JSON.parse(stored) as any;
       return {
         ...users[0],
         ...parsed,
@@ -178,7 +222,7 @@ export function getCurrentUser(): User {
         role: parsed.role ?? users[0].role,
         institution_id: parsed.institution_id ?? users[0].institution_id,
         position: parsed.position ?? users[0].position,
-        managerId: parsed.managerId ?? users[0].managerId,
+        managerId: parsed.managerId ?? parsed.manager_id ?? users[0].managerId,
         points: typeof parsed.points === "number" ? parsed.points : users[0].points,
       };
     }

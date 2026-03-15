@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { getActiveUsers, getUserById, getManagerName, type User } from "@/data/mock";
+import { useEffect, useState } from "react";
+import { getActiveUsers, getCurrentUser, getUserById, getManagerName, saveActiveUsers, type User } from "@/data/mock";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -9,6 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
 interface TreeNodeProps {
@@ -59,10 +60,46 @@ function TreeNode({ user, level, selectedId, onSelect, allUsers }: TreeNodeProps
 export default function OrgStructure() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [newManagerId, setNewManagerId] = useState<string>("");
+  const [loading, setLoading] = useState(true);
 
-  const users = getActiveUsers();
+  const currentUser = getCurrentUser();
+  const [users, setUsers] = useState<User[]>(getActiveUsers());
+
+  // Fetch users from backend to ensure IDs match the database
+  useEffect(() => {
+    const apiUrl =
+      (import.meta.env.VITE_API_URL as string) ||
+      `${window.location.protocol}//${window.location.hostname}:3000`;
+
+    fetch(`${apiUrl}/api/users`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          const normalized = data.map((u) => ({
+            ...u,
+            managerId: u.managerId ?? (u as any).manager_id ?? null,
+          }))
+          setUsers(normalized)
+          saveActiveUsers(normalized)
+        }
+      })
+      .catch(() => {
+        // Fallback to local storage if backend unavailable
+        setUsers(getActiveUsers());
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
   const rootUsers = users.filter((u) => u.managerId === null);
-  const selectedUser = selectedId ? getUserById(selectedId) : null;
+  const selectedUser = selectedId ? users.find((u) => u.id === selectedId) ?? null : null;
+
+  if (loading) {
+    return (
+      <div className="p-6 lg:p-8">
+        <p>Carregando usuários...</p>
+      </div>
+    );
+  }
 
  const validManagers = users.filter(
   (u) => u.id !== selectedId && u.role === "manager"
@@ -71,6 +108,46 @@ export default function OrgStructure() {
   const handleSave = () => {
     setSelectedId(null);
     setNewManagerId("");
+  };
+
+  const handleDelete = async () => {
+    if (!selectedUser) return;
+
+    const confirmed = window.confirm(
+      `Tem certeza que deseja excluir ${selectedUser.name}? Essa ação não pode ser desfeita.`
+    );
+    if (!confirmed) return;
+
+    const apiUrl =
+      (import.meta.env.VITE_API_URL as string) ||
+      `${window.location.protocol}//${window.location.hostname}:3000`;
+
+    const response = await fetch(`${apiUrl}/api/users/${selectedUser.id}`, {
+      method: "DELETE",
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => null);
+      toast({
+        title: "Erro ao excluir usuário",
+        description: error?.error ?? response.statusText,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Refresh from backend to ensure IDs and list are consistent
+    const refreshed = await fetch(`${apiUrl}/api/users`).then((r) => r.json()).catch(() => users);
+    const nextUsers = Array.isArray(refreshed) ? refreshed : users;
+
+    setUsers(nextUsers);
+    saveActiveUsers(nextUsers);
+    setSelectedId(null);
+
+    toast({
+      title: "Usuário excluído",
+      description: `${selectedUser.name} foi removido com sucesso.`,
+    });
   };
 
   return (
@@ -166,6 +243,15 @@ export default function OrgStructure() {
                 >
                   Save Changes
                 </Button>
+                {currentUser.role === "manager" && selectedUser && selectedUser.email !== "ana@azis.com" && (
+                  <Button
+                    variant="destructive"
+                    className="w-full"
+                    onClick={handleDelete}
+                  >
+                    Delete User
+                  </Button>
+                )}
               </div>
             </Card>
           </aside>

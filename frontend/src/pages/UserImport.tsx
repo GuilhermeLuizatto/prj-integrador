@@ -30,7 +30,7 @@ export default function UserImport() {
     setFileName(file.name);
 
     const reader = new FileReader();
-    reader.onload = () => {
+    reader.onload = async () => {
       const text = reader.result;
       if (typeof text !== "string") return;
 
@@ -46,7 +46,8 @@ export default function UserImport() {
       }
 
       const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
-      const required = ["name", "email", "role"];
+      const required = ["name", "email"];
+      const optional = ["role", "position", "points", "manageremail", "password"];
       const missing = required.filter((h) => !headers.includes(h));
 
       if (missing.length > 0) {
@@ -79,31 +80,22 @@ export default function UserImport() {
           continue;
         }
 
-        const emailLower = rowData.email.toLowerCase();
-        if (emailSet.has(emailLower)) {
-          // Se e-mail já existe, atualiza o usuário existente (não falha)
-          const existingIndex = existingUsers.findIndex((u) => u.email.toLowerCase() === emailLower);
-          if (existingIndex > -1) {
-            const original = existingUsers[existingIndex];
-            existingUsers[existingIndex] = {
-              ...original,
-              name: rowData.name,
-              role: rowData.role.toLowerCase() === "manager" ? "manager" : "member",
-              points: Number(rowData.points ?? original.points) || original.points || 0,
-              position: rowData.position ?? original.position,
-              managerId: original.managerId ?? null,
-              managerEmail: rowData.manageremail?.trim() ?? (original as any).managerEmail ?? "",
-            };
-          }
-          continue;
-        }
-
         if (!/^\S+@\S+\.\S+$/.test(rowData.email)) {
           errors.push({ row: rowNumber, description: "Formato de e-mail inválido." });
           continue;
         }
 
+        const emailLower = rowData.email.toLowerCase();
+
+        if (emailSet.has(emailLower)) {
+          errors.push({ row: rowNumber, description: "Usuário já existe" });
+          continue;
+        }
+
+        emailSet.add(emailLower);
+
         const newUser = {
+          __row: rowNumber,
           id: `${Date.now()}-${i}`,
           name: rowData.name,
           email: rowData.email,
@@ -114,10 +106,9 @@ export default function UserImport() {
           position: rowData.position ?? "",
           managerId: null,
           managerEmail: rowData.manageremail ?? "",
+          password: rowData.password ?? "123456", // default password if not provided
         };
-
         createdUsers.push(newUser);
-        emailSet.add(emailLower);
       }
 
       const finalUsers = [...existingUsers, ...createdUsers];
@@ -130,20 +121,48 @@ export default function UserImport() {
         const resolvedUser = {
           ...u,
           managerId: managerIdFromEmail ?? u.managerId ?? null,
-        } as User & { managerEmail?: string };
+        } as User & { managerEmail?: string; password?: string };
 
         // remover campo temporário de importação
         if ((resolvedUser as any).managerEmail) delete (resolvedUser as any).managerEmail;
 
-        return resolvedUser as User;
+        return resolvedUser as User & { password?: string };
       });
 
+      const apiUrl = (import.meta.env.VITE_API_URL as string) || "http://localhost:3000";
+
+      // Send to backend API
+      const response = await fetch(`${apiUrl}/api/users`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(resolvedUsers),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        setSummary({
+          totalRows: rows.length,
+          created: 0,
+          errors: [{ row: 0, description: `Erro ao salvar no servidor: ${errorData.error || 'Erro desconhecido'}` }],
+        });
+        return;
+      }
+
+      const result = await response.json();
+
+      // Also save to localStorage for frontend compatibility
       saveActiveUsers(resolvedUsers);
 
       setSummary({
         totalRows: rows.length,
-        created: createdUsers.length,
-        errors,
+        created: result.created || 0,
+        errors:
+          Array.isArray(result.errors) && result.errors.length > 0
+            ? result.errors.map((err: any) => ({
+                row: err.row ?? 0,
+                description: `${err.email ? `${err.email}: ` : ""}${err.error ?? err}`,
+              }))
+            : [],
       });
     };
 
@@ -165,7 +184,7 @@ export default function UserImport() {
   const handleDragLeave = () => setIsDragging(false);
 
   const handleDownloadTemplate = () => {
-    const csv = "name,email,phone,role,position\n";
+    const csv = "name,email,password,role,position,points,managerEmail\n";
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -283,14 +302,10 @@ export default function UserImport() {
                 </TableHeader>
 
                 <TableBody>
-                  {summary.errors.map((err) => (
-                    <TableRow key={err.row}>
-                      <TableCell className="font-medium">
-                        {err.row}
-                      </TableCell>
-                      <TableCell className="text-destructive">
-                        {err.description}
-                      </TableCell>
+                  {summary.errors.map((err, idx) => (
+                    <TableRow key={`${err.row}-${idx}`}>
+                      <TableCell className="font-medium">{err.row}</TableCell>
+                      <TableCell className="text-destructive">{err.description}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

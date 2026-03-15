@@ -1,7 +1,8 @@
 import { useState, useRef, DragEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { saveActiveUsers, getActiveUsers } from "@/data/mock";
+import { saveActiveUsers, getActiveUsers, getCurrentUser } from "@/data/mock";
+import { getApiUrl, getAuthHeaders } from "@/lib/api";
 import {
   Table,
   TableBody,
@@ -22,8 +23,18 @@ export default function UserImport() {
   const [fileName, setFileName] = useState<string | null>(null);
   const [summary, setSummary] = useState<ImportSummary | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const currentUser = getCurrentUser();
 
   const handleFile = (file: File) => {
+    if (currentUser.nivel < 3) {
+      toast({
+        title: "Acesso negado",
+        description: "Somente admins (nível 3) podem importar usuários.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const ext = file.name.split(".").pop()?.toLowerCase();
     if (ext !== "csv" && ext !== "xlsx") return;
 
@@ -94,17 +105,21 @@ export default function UserImport() {
 
         emailSet.add(emailLower);
 
+        const csvRole = rowData.role.toLowerCase().trim();
+        const role = csvRole === "manager" || csvRole === "gestor" ? "gestor" : "funcionario";
+
         const newUser = {
           __row: rowNumber,
           id: `${Date.now()}-${i}`,
           name: rowData.name,
           email: rowData.email,
           avatar: "",
-          role: rowData.role.toLowerCase() === "manager" ? "manager" : "member",
+          role,
+          nivel: role === "gestor" ? 2 : 1,
           points: Number(rowData.points ?? 0) || 0,
           institution_id: "1",
           position: rowData.position ?? "",
-          managerId: null,
+          gestorId: null,
           managerEmail: rowData.manageremail ?? "",
           password: rowData.password ?? "123456", // default password if not provided
         };
@@ -120,7 +135,7 @@ export default function UserImport() {
 
         const resolvedUser = {
           ...u,
-          managerId: managerIdFromEmail ?? u.managerId ?? null,
+          gestorId: managerIdFromEmail ?? u.gestorId ?? null,
         } as User & { managerEmail?: string; password?: string };
 
         // remover campo temporário de importação
@@ -132,9 +147,12 @@ export default function UserImport() {
       const apiUrl = (import.meta.env.VITE_API_URL as string) || "http://localhost:3000";
 
       // Send to backend API
-      const response = await fetch(`${apiUrl}/api/users`, {
+      const response = await fetch(getApiUrl('/api/users'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeaders(),
+        },
         body: JSON.stringify(resolvedUsers),
       });
 
@@ -208,43 +226,53 @@ export default function UserImport() {
         </div>
       </div>
 
-      {/* ACTION BUTTONS */}
-      <div className="flex items-center gap-3 mb-6">
-        <Button onClick={() => fileInputRef.current?.click()}>
-          Upload File
-        </Button>
+      {currentUser.nivel < 3 ? (
+        <Card className="p-6 mb-8">
+          <p className="text-sm text-muted-foreground">
+            Apenas admins (nível 3) podem importar usuários via planilha.
+          </p>
+        </Card>
+      ) : (
+        <>
+          {/* ACTION BUTTONS */}
+          <div className="flex items-center gap-3 mb-6">
+            <Button onClick={() => fileInputRef.current?.click()}>
+              Upload File
+            </Button>
 
-        <Button variant="outline" onClick={handleDownloadTemplate}>
-          Download Spreadsheet Template
-        </Button>
+            <Button variant="outline" onClick={handleDownloadTemplate}>
+              Download Spreadsheet Template
+            </Button>
 
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".csv,.xlsx"
-          className="hidden"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) handleFile(file);
-          }}
-        />
-      </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv,.xlsx"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleFile(file);
+              }}
+            />
+          </div>
 
-      {/* DROP AREA */}
-      <Card
-        onDrop={handleDrop}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        className={`border-2 border-dashed p-12 text-center mb-8 transition-colors ${
-          isDragging ? "border-primary bg-primary/5" : "border-border"
-        }`}
-      >
-        <p className="text-sm text-muted-foreground">
-          {fileName
-            ? `Selected: ${fileName}`
-            : "Drag and drop a .csv or .xlsx file here, or click Upload File"}
-        </p>
-      </Card>
+          {/* DROP AREA */}
+          <Card
+            onDrop={handleDrop}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            className={`border-2 border-dashed p-12 text-center mb-8 transition-colors ${
+              isDragging ? "border-primary bg-primary/5" : "border-border"
+            }`}
+          >
+            <p className="text-sm text-muted-foreground">
+              {fileName
+                ? `Selected: ${fileName}`
+                : "Drag and drop a .csv or .xlsx file here, or click Upload File"}
+            </p>
+          </Card>
+        </>
+      )}
 
       {/* SUMMARY */}
       {summary && (

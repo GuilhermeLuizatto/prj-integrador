@@ -3,12 +3,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Building2, Users, Mail, UserMinus, UserPlus } from "lucide-react";
-import { getActiveUsers } from "@/data/mock";
+import { getActiveUsers, getCurrentUser } from "@/data/mock";
 import { toast } from "sonner";
 import { useState } from "react";
 
 export default function Institution() {
   const [inviteEmail, setInviteEmail] = useState("");
+  const currentUser = getCurrentUser();
+  const membrosVisiveis = getActiveUsers().filter((m) => m.nivel !== 3);
 
   const handleInvite = (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,7 +72,7 @@ export default function Institution() {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {getActiveUsers().map((member) => (
+            {membrosVisiveis.map((member) => (
               <div key={member.id} className="flex items-center gap-4 p-3 rounded-lg bg-secondary/50">
                 <div className="w-10 h-10 rounded-full bg-gradient-primary flex items-center justify-center flex-shrink-0">
                   <span className="text-primary-foreground font-semibold text-sm">{member.name.charAt(0)}</span>
@@ -80,10 +82,15 @@ export default function Institution() {
                   <p className="text-xs text-muted-foreground truncate">{member.email}</p>
                 </div>
                 <span className="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary font-medium">
-                  {member.role === "manager" ? "Gestor" : "Membro"}
+                  {member.role === "gestor" ? "Gestor" : member.role === "admin" ? "Admin" : "Membro"}
                 </span>
-                {member.role !== "manager" && (
-                  <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => toast.info(`${member.name} removido`)}>
+                {currentUser.nivel >= 2 && member.nivel < 3 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive hover:text-destructive"
+                    onClick={() => toast.info(`${member.name} removido`)}
+                  >
                     <UserMinus className="w-4 h-4" />
                   </Button>
                 )}

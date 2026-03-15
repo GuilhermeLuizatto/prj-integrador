@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { getActiveUsers, getCurrentUser, getUserById, getManagerName, saveActiveUsers, type User } from "@/data/mock";
+import { getApiUrl, getAuthHeaders } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -20,9 +21,16 @@ interface TreeNodeProps {
   allUsers: User[];
 }
 
+const sortUsers = (a: User, b: User) => {
+  if (a.nivel !== b.nivel) return (b.nivel ?? 0) - (a.nivel ?? 0)
+  return a.name.localeCompare(b.name)
+}
+
 function TreeNode({ user, level, selectedId, onSelect, allUsers }: TreeNodeProps) {
-  const children = allUsers.filter((u) => u.managerId === user.id);
-  const isSelected = selectedId === user.id;
+  const children = allUsers
+    .filter((u) => u.gestorId === user.id)
+    .sort(sortUsers)
+  const isSelected = selectedId === user.id
 
   return (
     <div className={cn("ml-0", level > 0 && "ml-6")}>
@@ -54,30 +62,29 @@ function TreeNode({ user, level, selectedId, onSelect, allUsers }: TreeNodeProps
         </div>
       )}
     </div>
-  );
+  )
 }
 
 export default function OrgStructure() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [newManagerId, setNewManagerId] = useState<string>("");
+  const [newGestorId, setNewGestorId] = useState<string>("");
   const [loading, setLoading] = useState(true);
 
   const currentUser = getCurrentUser();
   const [users, setUsers] = useState<User[]>(getActiveUsers());
+  const visibleUsers = [...users].sort(sortUsers);
 
   // Fetch users from backend to ensure IDs match the database
   useEffect(() => {
-    const apiUrl =
-      (import.meta.env.VITE_API_URL as string) ||
-      `${window.location.protocol}//${window.location.hostname}:3000`;
+    const apiUrl = getApiUrl("/api/users");
 
-    fetch(`${apiUrl}/api/users`)
+    fetch(apiUrl, { headers: getAuthHeaders() })
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) {
           const normalized = data.map((u) => ({
             ...u,
-            managerId: u.managerId ?? (u as any).manager_id ?? null,
+            gestorId: u.gestorId ?? (u as any).gestor_id ?? null,
           }))
           setUsers(normalized)
           saveActiveUsers(normalized)
@@ -90,8 +97,8 @@ export default function OrgStructure() {
       .finally(() => setLoading(false));
   }, []);
 
-  const rootUsers = users.filter((u) => u.managerId === null);
-  const selectedUser = selectedId ? users.find((u) => u.id === selectedId) ?? null : null;
+  const rootUsers = visibleUsers.filter((u) => u.gestorId === null).sort(sortUsers)
+  const selectedUser = selectedId ? visibleUsers.find((u) => u.id === selectedId) ?? null : null;
 
   if (loading) {
     return (
@@ -101,13 +108,57 @@ export default function OrgStructure() {
     );
   }
 
- const validManagers = users.filter(
-  (u) => u.id !== selectedId && u.role === "manager"
-);
+ const validManagers = visibleUsers
+  .filter((u) => u.id !== selectedId && u.nivel >= 2)
+  .sort(sortUsers);
 
-  const handleSave = () => {
-    setSelectedId(null);
-    setNewManagerId("");
+  const handleSave = async () => {
+    if (!selectedUser) return;
+
+    // Não permitir mudanças sem permissão
+    if (currentUser.nivel < 2) {
+      toast({
+        title: "Acesso negado",
+        description: "Você não tem permissão para alterar a hierarquia.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const response = await fetch(getApiUrl(`/api/users/${selectedUser.id}`), {
+        method: "PUT",
+        headers: {
+          ...getAuthHeaders(),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ gestorId: newGestorId || null }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => null);
+        throw new Error(error?.error ?? response.statusText);
+      }
+
+      const updated = await response.json();
+      const nextUsers = users.map((u) => (u.id === updated.id ? { ...u, ...updated } : u));
+      setUsers(nextUsers);
+      saveActiveUsers(nextUsers);
+
+      toast({
+        title: "Hierarquia atualizada",
+        description: `${selectedUser.name} agora reporta para ${getManagerName(newGestorId)}.`,
+      });
+
+      setSelectedId(null);
+      setNewGestorId("");
+    } catch (err) {
+      toast({
+        title: "Erro ao salvar",
+        description: err instanceof Error ? err.message : "Falha ao atualizar usuário",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleDelete = async () => {
@@ -122,8 +173,9 @@ export default function OrgStructure() {
       (import.meta.env.VITE_API_URL as string) ||
       `${window.location.protocol}//${window.location.hostname}:3000`;
 
-    const response = await fetch(`${apiUrl}/api/users/${selectedUser.id}`, {
+    const response = await fetch(getApiUrl(`/api/users/${selectedUser.id}`), {
       method: "DELETE",
+      headers: getAuthHeaders(),
     });
 
     if (!response.ok) {
@@ -137,7 +189,9 @@ export default function OrgStructure() {
     }
 
     // Refresh from backend to ensure IDs and list are consistent
-    const refreshed = await fetch(`${apiUrl}/api/users`).then((r) => r.json()).catch(() => users);
+    const refreshed = await fetch(getApiUrl("/api/users"), { headers: getAuthHeaders() })
+      .then((r) => r.json())
+      .catch(() => users);
     const nextUsers = Array.isArray(refreshed) ? refreshed : users;
 
     setUsers(nextUsers);
@@ -162,6 +216,11 @@ export default function OrgStructure() {
             Visualize a hierarquia da equipe e gerencie relações de liderança
           </p>
         </div>
+        {currentUser.nivel < 3 && (
+          <div className="text-sm text-muted-foreground">
+            Você precisa ser Admin (nível 3) para gerenciar a hierarquia.
+          </div>
+        )}
       </div>
 
       <div className="flex gap-8">
@@ -176,7 +235,7 @@ export default function OrgStructure() {
                   level={0}
                   selectedId={selectedId}
                   onSelect={setSelectedId}
-                  allUsers={users}
+                  allUsers={visibleUsers}
                 />
               ))}
             </div>
@@ -212,7 +271,7 @@ export default function OrgStructure() {
                 <div>
                   <p className="text-muted-foreground">Current Manager</p>
                   <p className="text-foreground">
-                    {getManagerName(selectedUser.managerId)}
+                    {getManagerName(selectedUser.gestorId)}
                   </p>
                 </div>
               </div>
@@ -222,7 +281,7 @@ export default function OrgStructure() {
                   Assign Manager
                 </label>
 
-                <Select value={newManagerId} onValueChange={setNewManagerId}>
+                <Select value={newGestorId} onValueChange={setNewGestorId}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select a manager" />
                   </SelectTrigger>
@@ -239,11 +298,11 @@ export default function OrgStructure() {
                 <Button
                   className="w-full"
                   onClick={handleSave}
-                  disabled={!newManagerId}
+                  disabled={!newGestorId}
                 >
                   Save Changes
                 </Button>
-                {currentUser.role === "manager" && selectedUser && selectedUser.email !== "ana@azis.com" && (
+                {currentUser.nivel >= 2 && selectedUser && selectedUser.nivel !== 3 && (
                   <Button
                     variant="destructive"
                     className="w-full"

@@ -45,7 +45,8 @@ interface User {
   name: string;
   email: string;
   role: string;
-  managerId?: string | null;
+  nivel?: number;
+  gestorId?: string | null;
 }
 
 interface TaskFormModalProps {
@@ -70,10 +71,10 @@ export default function TaskFormModal({ trigger, onSubmit }: TaskFormModalProps)
     },
   });
 
-  const getAllSubordinateIds = (allUsers: User[], managerId: string | number): string[] => {
-    const managerIdStr = managerId?.toString();
+  const getAllSubordinateIds = (allUsers: User[], gestorId: string | number): string[] => {
+    const gestorIdStr = gestorId?.toString();
     const direct = allUsers
-      .filter((u) => u.managerId !== undefined && u.managerId !== null && u.managerId.toString() === managerIdStr)
+      .filter((u) => u.gestorId !== undefined && u.gestorId !== null && u.gestorId.toString() === gestorIdStr)
       .map((u) => u.id.toString());
 
     const indirect = direct.flatMap((subId) => getAllSubordinateIds(allUsers, subId));

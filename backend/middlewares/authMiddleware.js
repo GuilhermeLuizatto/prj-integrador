@@ -19,4 +19,21 @@ function verifyToken(req, res, next) {
   }
 }
 
-module.exports = { verifyToken }
+// Controle por nome de role — mantido para legibilidade
+const requireRole = (...roles) => (req, res, next) => {
+  if (!req.user || !roles.includes(req.user.role)) {
+    return res.status(403).json({ error: 'Acesso negado: permissão insuficiente' })
+  }
+  next()
+}
+
+// Controle por nível numérico — novo, para comparações de hierarquia
+// Uso: requireLevel(2) = permite nivel >= 2 (gestor e admin)
+const requireLevel = (minLevel) => (req, res, next) => {
+  if (!req.user || req.user.nivel < minLevel) {
+    return res.status(403).json({ error: 'Acesso negado: permissão insuficiente' })
+  }
+  next()
+}
+
+module.exports = { verifyToken, requireRole, requireLevel }

@@ -9,6 +9,7 @@ export default function Dashboard() {
   console.log("[Dashboard] currentUser:", currentUser);
 
   const activeUsers = getActiveUsers();
+  const visibleTeamUsers = activeUsers.filter((u) => u.nivel !== 3);
   const isExampleUser = currentUser.email === "ana@azis.com";
   const userPoints = Number(currentUser.points ?? 0);
   const userName = currentUser.name?.split(" ")[0] ?? "Usuário";
@@ -19,7 +20,7 @@ export default function Dashboard() {
     {
       label: "Ranking",
       value: isExampleUser
-        ? `#${Math.max(1, activeUsers.findIndex((u) => u.id === currentUser.id) + 1)}`
+        ? `#${Math.max(1, visibleTeamUsers.findIndex((u) => u.id === currentUser.id) + 1)}`
         : "#—",
       icon: Trophy,
       color: "text-accent",
@@ -28,7 +29,7 @@ export default function Dashboard() {
   ];
 
   const myTasks = isExampleUser
-    ? mockTasks.filter((t) => t.assignee.id === currentUser.id || currentUser.role === "manager")
+    ? mockTasks.filter((t) => t.assignee.id === currentUser.id || currentUser.nivel >= 2)
     : [];
 
   return (
@@ -103,7 +104,7 @@ export default function Dashboard() {
       </div>
 
       {/* Team Ranking Preview */}
-      {currentUser.role === "manager" && (
+      {currentUser.nivel >= 2 && (
         <Card>
           <CardHeader>
             <CardTitle className="text-lg font-heading flex items-center gap-2">
@@ -113,7 +114,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {[...activeUsers]
+              {[...visibleTeamUsers]
                 .sort((a, b) => b.points - a.points)
                 .slice(0, 5)
                 .map((member, i) => (
@@ -125,7 +126,7 @@ export default function Dashboard() {
                     </span>
                     <div className="flex-1">
                       <div className="text-sm font-medium text-foreground">{member.name}</div>
-                      <div className="text-xs text-muted-foreground">{member.role === "manager" ? "Gestor" : "Membro"}</div>
+                      <div className="text-xs text-muted-foreground">{member.role === "gestor" ? "Gestor" : member.role === "admin" ? "Admin" : "Membro"}</div>
                     </div>
                     <div className="flex items-center gap-1 text-sm font-semibold text-foreground">
                       <Star className="w-4 h-4 text-warning" />

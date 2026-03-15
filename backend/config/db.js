@@ -1,5 +1,6 @@
 const { Pool } = require('pg')
 const bcrypt = require('bcryptjs')
+const { getNivelFromRole } = require('../utils/roleUtils')
 
 const pool = new Pool({
   host: process.env.DB_HOST || 'localhost',
@@ -16,54 +17,77 @@ async function initDB() {
       name VARCHAR(255) NOT NULL,
       email VARCHAR(255) UNIQUE NOT NULL,
       institution VARCHAR(255),
-      role VARCHAR(50) NOT NULL DEFAULT 'member',
+      role VARCHAR(20) NOT NULL DEFAULT 'funcionario',
+      nivel INTEGER NOT NULL DEFAULT 1,
       password VARCHAR(255) NOT NULL,
       points INTEGER NOT NULL DEFAULT 0,
       position VARCHAR(255),
-      manager_id INTEGER REFERENCES users(id),
+      gestor_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
       created_at TIMESTAMP DEFAULT NOW()
     );
   `
 
   await pool.query(createTableSql)
-  await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(50) NOT NULL DEFAULT 'member'")
+
+  // Garantir colunas necessárias caso tabela já exista
+  await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) NOT NULL DEFAULT 'funcionario'")
+  await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS nivel INTEGER NOT NULL DEFAULT 1")
+  await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS password VARCHAR(255) NOT NULL")
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS points INTEGER NOT NULL DEFAULT 0")
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS position VARCHAR(255)")
-  await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS manager_id INTEGER")
+  await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS gestor_id INTEGER")
+
+  // Se a tabela já tinha manager_id, mantenha os valores em gestor_id para compatibilidade
+  await pool.query(
+    "UPDATE users SET gestor_id = manager_id WHERE gestor_id IS NULL AND manager_id IS NOT NULL"
+  )
+
+  // Conta Admin fixa (não criada pelo frontend)
+  const adminEmail = process.env.ADMIN_EMAIL || 'admin@azis.dev'
+  const adminPassword = process.env.ADMIN_PASSWORD || 'azis@admin2024'
+  const adminName = process.env.ADMIN_NAME || 'Azis Admin'
+  const hashedAdminPassword = await bcrypt.hash(adminPassword, 10)
+
+  await pool.query(
+    `INSERT INTO users (name, email, password, role, nivel) VALUES ($1, $2, $3, 'admin', 3) ON CONFLICT (email) DO NOTHING`,
+    [adminName, adminEmail, hashedAdminPassword]
+  )
 
   const seedUsers = [
-    { name: 'Ana Silva', email: 'ana@azis.com', institution: 'Azis', role: 'manager', points: 1250, position: 'CEO', managerEmail: null },
-    { name: 'Carlos Santos', email: 'carlos@azis.com', institution: 'Azis', role: 'member', points: 980, position: 'Frontend Developer', managerEmail: 'ana@azis.com' },
-    { name: 'Maria Oliveira', email: 'maria@azis.com', institution: 'Azis', role: 'member', points: 1100, position: 'Backend Developer', managerEmail: 'ana@azis.com' },
-    { name: 'Pedro Costa', email: 'pedro@azis.com', institution: 'Azis', role: 'member', points: 750, position: 'QA Engineer', managerEmail: 'maria@azis.com' },
-    { name: 'Julia Lima', email: 'julia@azis.com', institution: 'Azis', role: 'member', points: 890, position: 'UX Designer', managerEmail: 'carlos@azis.com' },
-    { name: 'Rafael Souza', email: 'rafael@azis.com', institution: 'Azis', role: 'member', points: 1350, position: 'DevOps Engineer', managerEmail: 'ana@azis.com' },
+    { name: 'Ana Silva', email: 'ana@azis.com', institution: 'Azis', role: 'gestor', points: 1250, position: 'CEO', managerEmail: null },
+    { name: 'Carlos Santos', email: 'carlos@azis.com', institution: 'Azis', role: 'funcionario', points: 980, position: 'Frontend Developer', managerEmail: 'ana@azis.com' },
+    { name: 'Maria Oliveira', email: 'maria@azis.com', institution: 'Azis', role: 'funcionario', points: 1100, position: 'Backend Developer', managerEmail: 'ana@azis.com' },
+    { name: 'Pedro Costa', email: 'pedro@azis.com', institution: 'Azis', role: 'funcionario', points: 750, position: 'QA Engineer', managerEmail: 'maria@azis.com' },
+    { name: 'Julia Lima', email: 'julia@azis.com', institution: 'Azis', role: 'funcionario', points: 890, position: 'UX Designer', managerEmail: 'carlos@azis.com' },
+    { name: 'Rafael Souza', email: 'rafael@azis.com', institution: 'Azis', role: 'funcionario', points: 1350, position: 'DevOps Engineer', managerEmail: 'ana@azis.com' },
   ]
 
   const defaultPassword = '123456'
   const hashedPassword = await bcrypt.hash(defaultPassword, 10)
 
   for (const user of seedUsers) {
+    const nivel = getNivelFromRole(user.role)
+
     let userId;
     const existing = await pool.query('SELECT id FROM users WHERE email = $1', [user.email])
     if (existing.rows.length === 0) {
       const insertResult = await pool.query(
-        'INSERT INTO users (name, email, institution, role, points, position, password) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id',
-        [user.name, user.email, user.institution, user.role, user.points, user.position, hashedPassword]
+        'INSERT INTO users (name, email, institution, role, nivel, points, position, password) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id',
+        [user.name, user.email, user.institution, user.role, nivel, user.points, user.position, hashedPassword]
       )
       userId = insertResult.rows[0].id
     } else {
       userId = existing.rows[0].id
       await pool.query(
-        'UPDATE users SET role = $1, points = $2, position = $3 WHERE id = $4',
-        [user.role, user.points, user.position, userId]
+        'UPDATE users SET role = $1, nivel = $2, points = $3, position = $4 WHERE id = $5',
+        [user.role, nivel, user.points, user.position, userId]
       )
     }
 
     if (user.managerEmail) {
       const manager = await pool.query('SELECT id FROM users WHERE email = $1', [user.managerEmail])
       if (manager.rows.length > 0) {
-        await pool.query('UPDATE users SET manager_id = $1 WHERE id = $2', [manager.rows[0].id, userId])
+        await pool.query('UPDATE users SET gestor_id = $1 WHERE id = $2', [manager.rows[0].id, userId])
       }
     }
   }

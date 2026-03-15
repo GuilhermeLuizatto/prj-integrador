@@ -29,6 +29,35 @@ async function initDB() {
 
   await pool.query(createTableSql)
 
+  // Novas tabelas do sistema (idempotente)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS tasks (
+      id SERIAL PRIMARY KEY,
+      title VARCHAR(255) NOT NULL,
+      description TEXT,
+      status VARCHAR(20) NOT NULL DEFAULT 'todo',
+      points INTEGER NOT NULL DEFAULT 10,
+      deadline DATE,
+      assignee_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      gestor_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    );
+  `)
+
+  // Garantir colunas necessárias caso tabela tasks já exista (migração incremental)
+  await pool.query("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS title VARCHAR(255) NOT NULL")
+  await pool.query("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS description TEXT")
+  await pool.query("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'todo'")
+  await pool.query("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS points INTEGER NOT NULL DEFAULT 10")
+  await pool.query("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS deadline DATE")
+  await pool.query("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS assignee_id INTEGER")
+  await pool.query("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS created_by INTEGER")
+  await pool.query("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS gestor_id INTEGER")
+  await pool.query("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()")
+  await pool.query("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()")
+
   // Garantir colunas necessárias caso tabela já exista
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) NOT NULL DEFAULT 'funcionario'")
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS nivel INTEGER NOT NULL DEFAULT 1")

@@ -188,13 +188,26 @@ export function getActiveUsers(): User[] {
           return users;
         }
 
-        return normalizedWithManagers;
+        // Normalize IDs to strings so comparisons always work even if backend returns numbers
+        const normalizedWithStrings = normalizedWithManagers.map((u) => ({
+          ...u,
+          id: u.id?.toString(),
+          gestorId: u.gestorId != null ? u.gestorId.toString() : null,
+        }));
+
+        return normalizedWithStrings;
       }
     }
   } catch (error) {
     console.error("getActiveUsers parse error:", error);
   }
-  return users;
+
+  // Ensure default mock data uses string IDs as well
+  return users.map((u) => ({
+    ...u,
+    id: u.id.toString(),
+    gestorId: u.gestorId != null ? u.gestorId.toString() : null,
+  }));
 }
 
 export function saveActiveUsers(activeUsers: User[]) {
@@ -231,25 +244,36 @@ export function getCurrentUser(): User {
     const stored = localStorage.getItem("azis_user");
     if (stored) {
       const parsed = JSON.parse(stored) as any;
-      return {
+      const current = {
         ...users[0],
         ...parsed,
-        id: parsed.id ?? users[0].id,
+        id: parsed.id != null ? parsed.id.toString() : users[0].id.toString(),
         name: parsed.name ?? users[0].name,
         email: parsed.email ?? users[0].email,
         avatar: parsed.avatar ?? users[0].avatar,
         role: parsed.role ?? users[0].role,
         institution_id: parsed.institution_id ?? users[0].institution_id,
         position: parsed.position ?? users[0].position,
-        gestorId: parsed.gestorId ?? parsed.gestor_id ?? users[0].gestorId,
+        gestorId:
+          parsed.gestorId != null
+            ? parsed.gestorId.toString()
+            : parsed.gestor_id != null
+            ? parsed.gestor_id.toString()
+            : users[0].gestorId?.toString() ?? null,
         points: typeof parsed.points === "number" ? parsed.points : users[0].points,
       };
+
+      return current;
     }
   } catch (error) {
     console.error("getCurrentUser parse error:", error);
   }
 
-  return users[0];
+  return {
+    ...users[0],
+    id: users[0].id.toString(),
+    gestorId: users[0].gestorId?.toString() ?? null,
+  };
 }
 
 // =====================

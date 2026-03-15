@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, closestCorners, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { motion, AnimatePresence } from "framer-motion";
@@ -6,11 +6,13 @@ import { Plus, Calendar, Star, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { getActiveUsers, mockTasks, Task, TaskStatus } from "@/data/mock";
+import { getActiveUsers, getCurrentUser, Task, TaskStatus } from "@/data/mock";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useDroppable } from "@dnd-kit/core";
 import TaskFormModal from "@/components/TaskFormModal";
+import { getApiUrl, getAuthHeaders } from "@/lib/api";
+import { toast } from "@/hooks/use-toast";
 
 const columns: { id: TaskStatus; title: string; color: string }[] = [
   { id: "todo", title: "A Fazer", color: "bg-info" },
@@ -83,26 +85,114 @@ function DroppableColumn({ column, tasks }: { column: typeof columns[0]; tasks: 
 }
 
 export default function Kanban() {
-  const [tasks, setTasks] = useState<Task[]>(mockTasks);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
   const activeUsers = getActiveUsers();
+  const currentUser = getCurrentUser();
 
-  const handleCreateTask = (data: { title: string; description: string; assignedTo: string }) => {
-    const assignee = activeUsers.find((u) => u.id === data.assignedTo) || activeUsers[0];
-    const newTask: Task = {
-      id: Date.now().toString(),
-      title: data.title,
-      description: data.description,
-      assignee,
-      status: "todo",
-      points: 10,
-      deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-      created_at: new Date().toISOString(),
-    };
-    setTasks((prev) => [...prev, newTask]);
+  const mapApiTaskToTask = (task: any): Task => ({
+    id: task.id?.toString() ?? "",
+    title: task.title,
+    description: task.description,
+    status: task.status,
+    points: task.points,
+    deadline: task.deadline,
+    created_at: task.created_at,
+    assignee: {
+      id: task.assignee_id?.toString() ?? "",
+      name: task.assignee_name ?? "",
+      email: task.assignee_email ?? "",
+      role: task.assignee_role ?? "funcionario",
+      nivel: currentUser?.nivel ?? 1,
+      points: 0,
+      institution_id: "",
+      position: "",
+      gestorId: null,
+    },
+  });
+
+  const loadTasks = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(getApiUrl("/api/tasks"), {
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders(),
+        },
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Erro ao carregar tarefas");
+      }
+
+      setTasks((data.tasks || []).map(mapApiTaskToTask));
+    } catch (err: any) {
+      console.error("loadTasks error:", err);
+      setError(err?.message ?? "Erro ao carregar tarefas");
+      toast({ title: "Erro", description: err?.message ?? "Falha ao carregar tarefas" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateTask = async (data: { title: string; description: string; assignedTo: string }) => {
+    try {
+      const response = await fetch(getApiUrl("/api/tasks"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders(),
+        },
+        body: JSON.stringify({
+          title: data.title,
+          description: data.description,
+          assignee_id: Number(data.assignedTo),
+        }),
+      });
+
+      const responseData = await response.json();
+      if (!response.ok) {
+        throw new Error(responseData.error ?? "Erro ao criar tarefa");
+      }
+
+      setTasks((prev) => [...prev, mapApiTaskToTask(responseData.task)]);
+    } catch (err: any) {
+      console.error("createTask error:", err);
+      toast({ title: "Erro", description: err?.message ?? "Falha ao criar tarefa" });
+    }
+  };
+
+  const updateTaskStatus = async (taskId: string, status: TaskStatus) => {
+    try {
+      const response = await fetch(getApiUrl(`/api/tasks/${taskId}/status`), {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders(),
+        },
+        body: JSON.stringify({ status }),
+      });
+
+      const responseData = await response.json();
+      if (!response.ok) {
+        throw new Error(responseData.error ?? "Erro ao atualizar status");
+      }
+
+      setTasks((prev) =>
+        prev.map((t) => (t.id === taskId ? { ...t, status: responseData.task.status } : t)),
+      );
+    } catch (err: any) {
+      console.error("updateTaskStatus error:", err);
+      toast({ title: "Erro", description: err?.message ?? "Falha ao atualizar status" });
+    }
   };
 
   const handleDragStart = (event: DragStartEvent) => {
@@ -122,9 +212,12 @@ export default function Kanban() {
     // Check if dropped on a column
     const targetColumn = columns.find((c) => c.id === overId);
     if (targetColumn) {
-      setTasks((prev) =>
-        prev.map((t) => (t.id === active.id ? { ...t, status: targetColumn.id } : t))
-      );
+      if (activeTask.status !== targetColumn.id) {
+        setTasks((prev) =>
+          prev.map((t) => (t.id === active.id ? { ...t, status: targetColumn.id } : t)),
+        );
+        updateTaskStatus(active.id as string, targetColumn.id);
+      }
       return;
     }
 
@@ -132,12 +225,17 @@ export default function Kanban() {
     const targetTask = tasks.find((t) => t.id === overId);
     if (targetTask && activeTask.status !== targetTask.status) {
       setTasks((prev) =>
-        prev.map((t) => (t.id === active.id ? { ...t, status: targetTask.status } : t))
+        prev.map((t) => (t.id === active.id ? { ...t, status: targetTask.status } : t)),
       );
+      updateTaskStatus(active.id as string, targetTask.status);
     }
   };
 
   const activeTask = tasks.find((t) => t.id === activeId);
+
+  useEffect(() => {
+    loadTasks();
+  }, []);
 
   return (
     <div className="p-6 lg:p-8">
